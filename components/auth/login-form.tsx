@@ -1,32 +1,22 @@
 "use client"
 
-import { useState, type FormEvent, type ChangeEvent } from "react"
+import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { LogoMark } from "./logo-mark"
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const [email, setEmail] = useState("")
-  const [error, setError] = useState("")
 
-  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value)
-    setError("")
-  }
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSpotifyLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
-    setError("")
 
     try {
-      // TODO: Implement Spotify OAuth flow
-      console.log("[v0] OAuth login initiated for:", email)
-      // Placeholder for auth.js integration
+      // TODO: Implement Spotify OAuth flow with auth.js
+      console.log("[v0] Spotify OAuth login initiated")
+      // Redirect to Spotify auth callback after implementation
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      console.error("[v0] Auth error:", err)
     } finally {
       setIsLoading(false)
     }
@@ -43,36 +33,9 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="space-y-6 bg-card-bg border border-card-border rounded-lg p-6 sm:p-8">
-        {/* Email Input Section */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-3">
-            <Label htmlFor="email" className="text-foreground font-medium">
-              Email Address
-            </Label>
-            <div className="mt-1">
-              <Input
-                id="email"
-                type="email"
-                variant="default"
-                size="lg"
-                placeholder="you@example.com"
-                value={email}
-                onChange={handleEmailChange}
-                disabled={isLoading}
-                required
-                aria-required="true"
-                aria-describedby={error ? "email-error" : undefined}
-              />
-            </div>
-            {error && (
-              <p id="email-error" className="text-sm text-red-500">
-                {error}
-              </p>
-            )}
-          </div>
-
+      {/* Form Card - Simplified for Spotify-only auth */}
+      <div className="bg-card-bg border border-card-border rounded-lg p-6 sm:p-8">
+        <form onSubmit={handleSpotifyLogin} className="space-y-4">
           <Button
             type="submit"
             variant="default"
@@ -87,21 +50,10 @@ export function LoginForm() {
                 Connecting...
               </span>
             ) : (
-              "Continue with Spotify"
+              "Sign in with Spotify"
             )}
           </Button>
         </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 border-t border-card-border" />
-          <span className="text-xs text-secondary-text">or</span>
-          <div className="flex-1 border-t border-card-border" />
-        </div>
-
-        <Button variant="outline" size="lg" className="w-full bg-transparent">
-          Try as Guest
-        </Button>
       </div>
 
       {/* Footer Info */}
