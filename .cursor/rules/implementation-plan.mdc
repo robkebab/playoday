@@ -1,0 +1,247 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+# Play O'Day — Implementation Plan (MVP)
+
+## Phase 0 — Project setup & prep (prereqs)
+
+**Goal:** get the repo, infra, and accounts ready so work flows smoothly.
+
+- Create repository (monorepo) and branch strategy (e.g., main, develop, feature branches).
+  - *Owner: Engineering lead / All devs*
+
+- Create Vercel project and connect repo; configure required environment variables:
+  - `DATABASE_URL`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `AUTHJS_SECRET`, `PLAY_ODAY_SPOTIFY_REFRESH_TOKEN` (central account), etc.
+  - *Owner: DevOps / Backend*
+
+- Provision Postgres instance (Neon / Supabase / RDS) and set `DATABASE_URL`.
+  - *Owner: DevOps*
+
+- Initialize Next.js 16 app (TypeScript), configure ESLint + Prettier, and add repo templates.
+  - *Owner: Frontend*
+
+- Add Prisma to repo, initialize schema with basic models (users, prompts, submissions, playlists, playlist_submissions). Add gitignored migration files.
+  - *Owner: Backend*
+
+- Create a central Spotify account for Play O'Day and confirm API access (get client id/secret). Test basic token exchange manually.
+  - *Owner: Product + Backend*
+
+**Acceptance:** Repo, Vercel, DB, and Spotify credentials exist and secrets are configured in Vercel for deploys.
+
+## Phase 1 — Authentication & user model
+
+**Goal:** allow users to sign-in with Spotify and persist essential user data.
+
+- Integrate AuthJS (Auth.js) with Spotify provider in Next.js:
+  - Server/session setup
+  - Request scopes: `user-read-private`, `user-read-email`, `streaming` (for future), `user-library-modify` (future) as optional consent.
+  - Ensure refresh token storage path (persist to DB).
+  - *Owner: Backend / Fullstack*
+
+- Implement users table via Prisma and a simple upsert flow after successful OAuth:
+  - store `spotify_id`, `display_name`, `avatar_url`, `encrypted refresh_token`.
+  - *Owner: Backend*
+
+- Implement `GET /api/auth/session` and `GET /api/auth/logout` endpoints and client-side hooks (useSession).
+  - *Owner: Backend + Frontend*
+
+- Add a small login page & "Sign in with Spotify" button; after login redirect to app home.
+  - *Owner: Frontend*
+
+**Acceptance:** Users can sign in with Spotify; session endpoints return user; DB has user row with refresh token.
+
+## Phase 2 — Data model & admin prompt seed
+
+**Goal:** finalize DB models and seed initial prompts.
+
+- Finalize Prisma schema for:
+  - User, Prompt, Submission, Playlist, PlaylistSubmission.
+  - Add `is_admin` flag on user (or store admin list in env).
+  - *Owner: Backend*
+
+- Create Prisma migrations and run against the Postgres instance.
+  - *Owner: Backend*
+
+- Seed the prompts table with a small hardcoded set for MVP; expose admin endpoint to add prompts later.
+  - *Owner: Backend*
+
+**Acceptance:** DB schema migrated; prompts available via API.
+
+## Phase 3 — Track search UI & submission flow
+
+**Goal:** let users search for a track and submit it for tomorrow.
+
+- Build server proxy endpoint for Spotify search (`/api/spotify/search?q=...`) that:
+  - uses a server-side token (AuthJS or central credentials for search) or user token when available.
+  - returns a trimmed result (track id, name, artist, preview_url, album art).
+  - *Owner: Backend*
+
+- Implement typeahead UI component in Next.js that queries the server proxy and lists tracks.
+  - *Owner: Frontend*
+
+- Create `POST /api/submissions` endpoint:
+  - validates `track_id` and `prompt_id`
+  - inserts Submission with `submitted_for_date` = tomorrow
+  - prevents duplicate submissions by same user for same date (return 409 or allow update).
+  - *Owner: Backend*
+
+- Add client flow: select track → confirm → submit → show success state.
+  - *Owner: Frontend*
+
+- Add `GET /api/submissions?date=YYYY-MM-DD` for admin use/view.
+  - *Owner: Backend*
+
+**Acceptance:** Authenticated user can search and submit a single track for the next day; submission stored in DB.
+
+## Phase 4 — Daily playlist generation (Cron job)
+
+**Goal:** aggregate submissions and create a playlist on the central Spotify account.
+
+- Implement playlist creation job logic as an API route that can be triggered (e.g., `POST /api/admin/playlists/generate`):
+  - Query submissions for target date.
+  - Decide ordering/deduplication policy (MVP: preserve submission timestamp order; dedupe identical track IDs keeping first occurrence — confirm).
+  - Create playlist via Spotify API (central account) and add tracks in batches (<=100).
+  - Persist playlist metadata in playlists table and playlist_submissions join table.
+  - Return success/failure and log errors clearly.
+  - *Owner: Backend*
+
+- Wire Vercel Cron Jobs to call the generation endpoint at 00:00 UTC (or test run manually during development).
+  - *Owner: DevOps / Backend*
+
+- Implement retry/backoff for 429 responses from Spotify and capture failures (Sentry / logs).
+  - *Owner: Backend*
+
+- Add admin manual trigger UI for testing the job and viewing results.
+  - *Owner: Frontend + Backend*
+
+**Acceptance:** Cron or manual trigger creates a Spotify playlist under central account with all submissions; DB reflects published playlist.
+
+## Phase 5 — Playlist of the day display & playback
+
+**Goal:** show the playlist to users and enable in-browser playback.
+
+- Implement `GET /api/playlists/today` (and `GET /api/playlists/{date}`) endpoints returning playlist metadata + track list (cached fields).
+  - *Owner: Backend*
+
+- Frontend page for Playlist of the Day:
+  - show prompt, cover art, list of tracks with artist names, and a play button for each entry.
+  - Add a top-level "Play" button to start the Spotify Web Playback SDK player.
+  - *Owner: Frontend*
+
+- Integrate Spotify Web Playback SDK:
+  - Acquire a user access token with streaming scope on sign-in (note requirement: Premium).
+  - If user does not have Premium or token does not support Web Playback, present fallback: "Open in Spotify" link for each track and playlist.
+  - *Owner: Frontend + Backend*
+
+- Track UI states: playing, paused, device not available, need Premium notice.
+  - *Owner: Frontend*
+
+**Acceptance:** Users can view the playlist-of-the-day. Premium users can play tracks in-app; others can open in Spotify.
+
+## Phase 6 — Admin UI and tooling
+
+**Goal:** provide basic admin capabilities for managing prompts and debugging jobs.
+
+- Admin pages:
+  - Prompt management CRUD (create/edit/delete).
+  - View submissions for a date with export (CSV) option.
+  - Manual playlist generation and view job logs.
+  - View playlists and statuses (pending, published, failed).
+  - *Owner: Frontend + Backend*
+
+- Protect admin routes with server-side permission checks (`is_admin` or env-based admin list).
+  - *Owner: Backend*
+
+**Acceptance:** Admin can manage prompts and run/test playlist generation.
+
+## Phase 7 — Testing, QA & security hardening
+
+**Goal:** make sure the app is reliable, tested, and safe for initial users.
+
+- Write unit tests for core backend logic (submission validation, playlist assembly).
+  - *Owner: Backend*
+
+- Add integration tests for API endpoints (auth flow may be mocked).
+  - *Owner: Backend*
+
+- End-to-end user flows in staging:
+  - Sign in with Spotify.
+  - Submit a track.
+  - Trigger playlist creation.
+  - Playback test (with Premium user).
+  - *Owner: Fullstack*
+
+- Add Sentry or equivalent for error monitoring; ensure logs for cron job runs are captured.
+  - *Owner: DevOps*
+
+- Encrypt sensitive data at rest (refresh tokens) and restrict DB access. Rotate Spotify client secret if leaked.
+  - *Owner: DevOps / Security*
+
+**Acceptance:** Tests pass in CI, staging flow verified, and monitoring in place.
+
+## Phase 8 — Launch & rollout
+
+**Goal:** deploy to production and invite the first friend groups.
+
+- Finalize Vercel environment variables for production.
+
+- Ensure central Spotify account is healthy and has required scopes/permissions.
+
+- Deploy to Vercel and run onboarding checklist:
+  - Smoke test auth, submit, job, and playback.
+  - Verify Vercel Cron runs (or schedule confirmed).
+  - *Owner: DevOps + Product*
+
+- Invite initial friend group(s) to test live experience and gather feedback.
+  - *Owner: Product*
+
+**Acceptance:** Production deploy is live and initial users can use core flows successfully.
+
+## Phase 9 — Post-launch & next-step features
+
+**Goal:** iteratively improve with prioritized features.
+
+- Implement likes syncing to user Spotify libraries:
+  - Add `user-library-modify` scope, track likes table, API to sync likes to `/v1/me/tracks`.
+  - *Owner: Backend + Frontend*
+
+- Add voting + Top 13 "Top Hits" playlist:
+  - Collect votes during the day, generate a Top Hits playlist at day end.
+  - *Owner: Backend + Frontend*
+
+- Add archives and pagination for past playlists and prompts.
+  - *Owner: Frontend + Backend*
+
+- Consider scaling changes (see scaling notes below).
+  - *Owner: Engineering lead*
+
+**Acceptance:** New features validated with users and monitored.
+
+## Cross-cutting concerns & checks (do these alongside phases)
+
+- **Rate-limit & retry strategy:** handle Spotify 429s across all Spotify-bound requests.
+
+- **Token refresh flow:** robust server-side refresh using stored refresh tokens. Test token revocation scenarios.
+
+- **Data as system of record:** store playlist metadata and submission copies locally; don't rely purely on Spotify for state.
+
+- **Privacy & compliance:** show privacy notice for Spotify data usage and deletion flows (allow user to delete account and tokens).
+
+- **Feature flags:** gate likes and voting behind flags for controlled release.
+
+- **Monitoring:** log cron runs, playlist creation successes/failures, and API error rates.
+
+- **Backups:** DB backups and a simple recovery plan in case of corruption.
+
+## Scaling notes (how architecture would change if you scale up)
+
+- Move playlist creation out of serverless page functions into a queued worker (e.g., BullMQ / Redis or a managed job runner).
+
+- Use read replicas / partitioning for Postgres, and move static resources to CDN edge caching.
+
+- Add rate-limited batching and a controlled worker pool to add tracks to Spotify to avoid 429s.
+
+- Introduce feature flags and AB testing infra to iterate safely.

@@ -1,0 +1,85 @@
+---
+description: An non-technical overview of the project
+globs:
+alwaysApply: false
+---
+
+# Play O'Day — Project Overview
+
+## Vision
+
+Play O’Day is a friends-first, community-driven app for discovering new music together. Each day, users submit one song based on a fun or thoughtful prompt (e.g. “Songs to walk your dog to”). The next morning, everyone wakes up to a new playlist—made entirely from their collective submissions. Over time, Play O’Day becomes a shared ritual: a simple, daily way to explore new music and connect with friends.
+
+---
+
+## Core Concept
+
+Play O’Day’s experience is built around a daily rhythm:
+
+1. **Connect** — Users log in with their Spotify account.
+2. **Discover** — Each day, they can listen to the previous day’s playlist (“Playlist of the Day”).
+3. **Contribute** — They see a new prompt for tomorrow’s playlist and submit one song that fits the theme.
+4. **Repeat** — The next day, their submission—and everyone else’s—is released as a new playlist.
+
+Future versions will introduce social elements like voting, top hits playlists, and likes that sync to users’ Spotify libraries.
+
+---
+
+## Product Goals
+
+* **Primary Goal:** Help small friend groups discover new music through daily collaborative playlists.
+* **MVP Goal:** Build a simple, delightful flow for connecting Spotify, submitting a song, and listening to the resulting playlist.
+* **Long-term Goal:** Grow into a social music platform centered on curation, taste-sharing, and musical discovery.
+
+---
+
+## Target Audience
+
+Play O’Day is for small friend groups who share music and enjoy playful prompts. It’s intentionally intimate and community-based rather than public or algorithm-driven. Future versions may expand to allow public groups or communities, but the MVP focuses on the friend experience.
+
+---
+
+## Core MVP Features
+
+* **Spotify Integration:** Users authenticate with Spotify and are identified by their Spotify profiles.
+* **Daily Prompt:** A simple, shared theme for song submissions (hardcoded for now).
+* **Song Submission:** Users search and select a single track for tomorrow’s playlist.
+* **Playlist Generation:** Every day at midnight (UTC), all submissions are compiled into a new Spotify playlist created under the central Play O’Day Spotify account.
+* **Playlist of the Day:** Users can view and play the current day’s playlist directly in the app via Spotify’s embedded player.
+* **Admin Tools:** A simple admin interface for managing prompts and triggering test playlist creation.
+
+---
+
+## Future Enhancements
+
+* **Voting & Top Hits:** Users can vote on songs in the playlist; a secondary “Top 13” playlist is generated daily.
+* **Archives:** Past playlists and prompts are viewable in an archive section.
+* **Likes & Sync:** Users can like songs directly in Play O’Day, syncing likes to their Spotify library.
+* **Groups:** Support for private or public friend groups with their own playlists and prompts.
+* **Guest Mode:** Limited listen-only experience without Spotify authentication.
+* **Social Features:** Comments, reactions, and shared discovery moments.
+
+---
+
+## User Experience Principles
+
+* **Playful:** Prompts and UI should invite creativity and lightheartedness.
+* **Effortless:** The daily ritual should feel lightweight—open the app, listen, submit, done.
+* **Connected:** Focus on shared experience and social discovery rather than algorithmic recommendation.
+
+---
+
+## Success Metrics
+
+For the MVP:
+
+* **Engagement:** Percentage of users who submit a song each day.
+* **Retention:** 7-day retention rate.
+* **Playlist Plays:** Number of listens or clicks to play the playlist.
+* **Growth:** Organic invites or word-of-mouth adoption among friends.
+
+---
+
+## Summary
+
+Play O’Day turns music discovery into a shared, daily experience. By combining Spotify’s ecosystem with a social, prompt-based format, it creates a ritual that’s both personal and collective. The MVP focuses on simplicity: daily prompts, song submissions, and playlists that connect friends through music.

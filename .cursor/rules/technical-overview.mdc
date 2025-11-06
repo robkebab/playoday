@@ -1,0 +1,209 @@
+---
+description: High-level technical overview of the project
+globs:
+alwaysApply: false
+---
+
+# Play O'Day — Technical Overview & Architecture
+
+> Technical blueprint for the MVP and near-future extensions. Covers stack, architecture, data model, API surface, jobs, deployment, and scaling guidance.
+
+---
+
+## 1) High-level architecture
+
+* **Frontend:** Next.js 16 (React) — single codebase for pages and server actions. Deployed on Vercel.
+* **Backend / APIs:** Next.js serverless functions (Vercel Serverless Functions) for authenticated API endpoints and admin operations.
+* **Database:** Postgres (managed provider of choice). Use Prisma as the ORM for schema, migrations, and type-safe queries.
+* **Auth:** AuthJS (Auth.js) with Spotify provider. AuthJS handles OAuth flow, token storage in session, and refresh handling. Persist refresh tokens in the `users` table.
+* **Scheduler:** Vercel Cron Jobs to run the daily playlist aggregation at 00:00 UTC (configurable).
+* **Spotify Integration:** Central Play O’Day Spotify account used to create playlists. Users authenticate with Spotify to enable playback and eventual like/save actions that write to users’ Spotify libraries.
+* **Playback:** Spotify Web Playback SDK embedded into the web app for in-app playback. (Note: Web Playback SDK requires users to have Spotify Premium for active playback control.)
+* **Admin UI:** Protected admin pages within Next.js (role-based guard) for prompt management and manual job triggers.
+
+---
+
+## 2) Core technical responsibilities & flows
+
+### 2.1 Signup / Auth flow
+
+1. User signs in with Spotify via AuthJS.
+2. AuthJS performs OAuth and returns access + refresh tokens.
+3. Store minimal user metadata and the refresh token in `users` table. Access tokens are short-lived and can be stored in secure session cookies via AuthJS. Refresh tokens are used server-side to obtain new access tokens when needed.
+
+### 2.2 Submission flow
+
+1. Frontend provides a typeahead track search (Spotify search API) to locate tracks. Search uses a server proxy endpoint to avoid exposing any sensitive secret and to stay within rate-limit handling strategy.
+2. When user submits a track for `tomorrow`:
+
+   * POST `/api/submissions` with `track_id`, `prompt_id`, and user context.
+   * Server validates the Spotify track ID (optional double-check), creates a `submission` row, and returns success.
+
+### 2.3 Daily playlist creation (scheduler)
+
+* Vercel Cron triggers `/api/jobs/create-playlist?date=YYYY-MM-DD` at 00:00 UTC.
+* Job logic:
+
+  1. Read all submissions for the previous date (or the `tomorrow` bucket depending on implementation).
+  2. Assemble a track list (deduplicate if desired, preserve submission order or randomize — decision point).
+  3. Call Spotify API using the Play O’Day central account to create a new playlist, add tracks in batches (Spotify max 100 per request), update `playlists` and `playlist_submissions` rows with the resulting `spotify_playlist_id` and status.
+  4. Notify users (optional): send in-app notification or email link.
+
+### 2.4 In-app playback & later likes
+
+* Playback: use the Web Playback SDK to let users listen inside the app. The SDK requires a user access token and Spotify Premium for remote playback. For users without Premium, provide a fallback link to open the Spotify app.
+* Like/save sync (future): when a user “likes” a track in Play O’Day, call Spotify Save Tracks API (`/v1/me/tracks`) on behalf of that user using their access token (server-side). Ensure the user has granted the `user-library-modify` scope at auth.
+
+---
+
+## 3) Data model (Prisma-style entities)
+
+### Users
+
+* `id` (uuid)
+* `spotify_id` (string, unique)
+* `display_name` (string)
+* `avatar_url` (string)
+* `refresh_token` (encrypted string)
+* `created_at`, `updated_at`
+
+### Prompts
+
+* `id` (uuid)
+* `text` (string)
+* `date` (date) — for ad-hoc prompts tied to a specific day (optional)
+* `created_by` (nullable, admin user id)
+
+### Submissions
+
+* `id` (uuid)
+* `user_id` (FK -> users.id)
+* `prompt_id` (FK -> prompts.id)
+* `track_id` (spotify track id string)
+* `track_name`, `artist_name` (cached for display)
+* `submitted_for_date` (date) — the playlist date this submission is for
+* `created_at`
+
+### Playlists
+
+* `id` (uuid)
+* `prompt_id` (FK)
+* `spotify_playlist_id` (string)
+* `date` (date)
+* `status` (enum: pending, published, failed)
+* `created_at`, `published_at`
+
+### PlaylistSubmissions (join table)
+
+* `id` (uuid)
+* `playlist_id` (FK)
+* `submission_id` (FK)
+* `position` (int)
+
+---
+
+## 4) API surface (examples)
+
+* `GET /api/me` — current user profile
+* `GET /api/prompts/today` — current prompt and submission window
+* `GET /api/playlists/today` — playlist-of-the-day metadata (and playback link)
+* `POST /api/submissions` — create submission (requires auth)
+* `GET /api/submissions?date=YYYY-MM-DD` — admin view of submissions
+* `POST /api/admin/trigger-playlist?date=YYYY-MM-DD` — manual job trigger (admin-only)
+* `POST /api/webhooks/spotify` — optional webhook receiver for things like playlist changes or token revocation
+
+---
+
+## 5) Third-party considerations & rate-limits
+
+* **Spotify API rate limits:** Respect rate limits — batch additions to playlists (max 100 tracks per add request). Retry with exponential backoff for 429 responses and surface errors to admin if job repeatedly fails.
+* **Auth scopes required (MVP and future):**
+
+  * `user-read-email` (optional)
+  * `user-read-private` (for profile)
+  * `playlist-modify-public` and/or `playlist-modify-private` (to create playlists under central account)
+  * `user-library-modify` (future, to save liked tracks on users' behalf)
+  * `streaming` (for Web Playback SDK)
+
+---
+
+## 6) Security & privacy
+
+* Store refresh tokens encrypted at rest.
+* Minimize PII stored — rely on Spotify for identity.
+* Use role-based access for admin pages (protect with server-side checks).
+* Validate all incoming data server-side (track IDs, date ranges).
+* Rate limit API endpoints per IP / user to prevent abuse.
+
+---
+
+## 7) Observability & reliability
+
+* Logging: structured logs for job runs and API errors (e.g., Sentry).
+* Metrics: daily submissions, job success/failure, playlist creation latency, API error rates.
+* Alerting: job failures (playlist creation), repeated 401/403 from Spotify (token/permission issues).
+
+---
+
+## 8) Development & deployment workflow
+
+* Monorepo with Next.js app containing frontend pages, API routes, and admin UI.
+* Use Prisma for schema migrations and generated types. Keep migrations in `prisma/migrations`.
+* CI: run tests and Prisma migrations on a staging DB; deploy to Vercel on merge to `main`.
+* Use environment variables for Spotify client secret, central Spotify account tokens, DB connection, and AuthJS secret.
+
+---
+
+## 9) Admin tooling
+
+* Admin page: view submissions for any date, re-run playlist job for debugging, manage prompts, and view job logs.
+* Role management: simplest approach is an `is_admin` flag in `users` table or a separate admin user list in env.
+
+---
+
+## 10) Scaling guidance (from dozens → thousands of users)
+
+### If scale remains small (dozens)
+
+* Keep serverless + Postgres single primary instance. Cron jobs on Vercel are sufficient.
+* Use caching at the edge for static pages and the `today` endpoints.
+
+### As you grow (hundreds → thousands daily active)
+
+* **Jobs & rate-limits:** move playlist assembly into a job queue (e.g., BullMQ or a managed queue). Use worker instances to avoid serverless timeouts and to better handle Spotify rate-limits.
+* **DB:** provision a managed Postgres with read replicas; partition older data (archival) if necessary.
+* **Caching:** put frequently requested resources (today’s prompt, playlist metadata) at the CDN/edge.
+* **Service separation:** extract long-running jobs into separate worker services (containerized on ECS/Fargate or Fly/Scale). Keep API surface lightweight.
+* **Observability:** add Prometheus/Grafana for metrics and SLOs.
+
+---
+
+## 11) MVP timeline (rough)
+
+* **Week 0 — Planning:** finalize prompts, environment, and Spotify central account setup.
+* **Week 1 — Core auth & DB:** Next.js scaffold, AuthJS + Spotify login, Prisma schema, Postgres connectivity.
+* **Week 2 — Submission flow & UI:** search UI, submission API and storage, basic admin page.
+* **Week 3 — Playlist job & Spotify integration:** implement Vercel Cron job, create playlist using central account, add tracks, and display playlist-of-the-day.
+* **Week 4 — Playback & polish:** integrate Web Playback SDK, admin tooling, testing, and deploy to production.
+
+---
+
+## 12) Open decisions & risks
+
+* **Track ordering / deduplication policy** — how to order tracks in the playlist and whether to dedupe repeated submissions.
+* **Playback limitations** — Web Playback SDK requires Spotify Premium. Provide fallback UX for non-Premium users.
+* **Token management** — ensure refresh tokens are handled securely and tests for token expiry are in place.
+* **Rate-limiting strategy** — design for 429 responses during playlist creation.
+
+---
+
+## 13) Next steps
+
+1. Approve stack choices (Next.js 16, Vercel, Postgres, Prisma, AuthJS).
+2. Pick a Postgres provider (Neon, Supabase Postgres, RDS, etc.).
+3. Finalize prompt schedule and playlist ordering rules.
+4. Kick off the repository and initial sprint (Week 0 tasks from the timeline).
+
+---
+
+*Document created to guide implementation; can be expanded into runbooks, ERDs, and CI/CD docs on request.*

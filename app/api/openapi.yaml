@@ -1,0 +1,594 @@
+openapi: 3.0.3
+info:
+  title: Play O'Day API
+  version: "1.0.0"
+  description: >
+    OpenAPI 3.0 specification for the Play O'Day MVP API.
+    Base URL for the spec: https://playoday.app/api
+servers:
+  - url: https://playoday.app/api
+security:
+  - BearerAuth: [] 
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        spotify_id:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+    SessionResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        expires:
+          type: string
+          format: date-time
+    Prompt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        date:
+          type: string
+          format: date
+    PromptCreate:
+      type: object
+      required:
+        - text
+        - date
+      properties:
+        text:
+          type: string
+        date:
+          type: string
+          format: date
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        prompt_id:
+          type: string
+          format: uuid
+        track_id:
+          type: string
+          description: spotify:track:<id> or track id string
+        track_name:
+          type: string
+        artist_name:
+          type: string
+        submitted_for_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+    SubmissionCreate:
+      type: object
+      required:
+        - track_id
+        - prompt_id
+      properties:
+        track_id:
+          type: string
+        prompt_id:
+          type: string
+          format: uuid
+    PlaylistTrack:
+      type: object
+      properties:
+        track_id:
+          type: string
+        track_name:
+          type: string
+        artist_name:
+          type: string
+    Playlist:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        spotify_playlist_id:
+          type: string
+        prompt:
+          $ref: '#/components/schemas/Prompt'
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - pending
+            - published
+            - failed
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaylistTrack'
+        created_at:
+          type: string
+          format: date-time
+        published_at:
+          type: string
+          format: date-time
+    PlaylistGenerateRequest:
+      type: object
+      required:
+        - date
+      properties:
+        date:
+          type: string
+          format: date
+    LikeRequest:
+      type: object
+      required:
+        - track_id
+      properties:
+        track_id:
+          type: string
+
+paths:
+  /auth/session:
+    get:
+      tags:
+        - auth
+      summary: Retrieve current authenticated session
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    get:
+      tags:
+        - auth
+      summary: Ends the user session
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Logged out (no content)
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /prompts/today:
+    get:
+      tags:
+        - prompts
+      summary: Get today's prompt
+      responses:
+        "200":
+          description: Today's prompt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prompt'
+
+  /prompts/tomorrow:
+    get:
+      tags:
+        - prompts
+      summary: Get tomorrow's prompt (for submissions)
+      responses:
+        "200":
+          description: Tomorrow's prompt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prompt'
+
+  /admin/prompts:
+    post:
+      tags:
+        - admin
+        - prompts
+      summary: Create or update a prompt (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptCreate'
+      responses:
+        "201":
+          description: Prompt created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prompt'
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "403":
+          description: Forbidden (not admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions:
+    get:
+      tags:
+        - submissions
+      summary: Get current user's submissions (or filter by date if admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          description: Filter submissions by date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - submissions
+      summary: Submit a track for tomorrow's playlist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreate'
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/{id}:
+    delete:
+      tags:
+        - submissions
+      summary: Delete a user's submission
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /playlists/today:
+    get:
+      tags:
+        - playlists
+      summary: Retrieve today's published playlist metadata
+      responses:
+        "200":
+          description: Playlist metadata for today
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        "404":
+          description: Not found (no playlist published yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /playlists/{date}:
+    get:
+      tags:
+        - playlists
+      summary: Retrieve playlist metadata for a given date
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Playlist metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/playlists/generate:
+    post:
+      tags:
+        - admin
+        - playlists
+      summary: Manually trigger playlist generation for a given date (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistGenerateRequest'
+      responses:
+        "200":
+          description: Playlist generation triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  date:
+                    type: string
+                    format: date
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /likes:
+    post:
+      tags:
+        - likes
+      summary: Like a track in Play O'Day and sync with Spotify user library (future)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LikeRequest'
+      responses:
+        "201":
+          description: Track liked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "401":
+          description: Unauthorized
+        "400":
+          description: Bad request
+    delete:
+      tags:
+        - likes
+      summary: Unlike a track (remove from Play O'Day likes and user's Spotify library)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: track_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Unliked
+        "401":
+          description: Unauthorized
+        "400":
+          description: Bad request
+
+  /admin/submissions:
+    get:
+      tags:
+        - admin
+        - submissions
+      summary: View all submissions for a given date (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of submissions with user info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/playlists:
+    get:
+      tags:
+        - admin
+        - playlists
+      summary: View all playlists (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Playlists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Playlist'
+        "403":
+          description: Forbidden
+
+  /admin/jobs/logs:
+    get:
+      tags:
+        - admin
+        - jobs
+      summary: Retrieve recent cron job logs (admin)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Job logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    job:
+                      type: string
+                    status:
+                      type: string
+                    message:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+        "403":
+          description: Forbidden
+
+tags:
+  - name: auth
+    description: Authentication endpoints / session management
+  - name: prompts
+    description: Daily prompt endpoints
+  - name: submissions
+    description: Track submission endpoints
+  - name: playlists
+    description: Playlist retrieval and generation
+  - name: likes
+    description: Like / save tracks (future)
+  - name: admin
+    description: Admin-only endpoints
+  - name: jobs
+    description: Cron / job logs and management
