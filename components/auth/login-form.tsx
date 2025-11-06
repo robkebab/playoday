@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { LogoMark } from "./logo-mark"
+import { SpotifyLogo } from "./spotify-logo"
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -50,7 +51,10 @@ export function LoginForm() {
                 Connecting...
               </span>
             ) : (
-              "Sign in with Spotify"
+              <span className="flex items-center gap-2">
+                <SpotifyLogo className="w-5 h-5" />
+                Sign in with Spotify
+              </span>
             )}
           </Button>
         </form>
