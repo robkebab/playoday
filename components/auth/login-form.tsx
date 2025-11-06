@@ -51,10 +51,12 @@ export function LoginForm() {
             <Label htmlFor="email" className="text-foreground font-medium">
               Email Address
             </Label>
-            <div className="mt-3">
+            <div className="mt-1">
               <Input
                 id="email"
                 type="email"
+                variant="default"
+                size="lg"
                 placeholder="you@example.com"
                 value={email}
                 onChange={handleEmailChange}
@@ -62,7 +64,6 @@ export function LoginForm() {
                 required
                 aria-required="true"
                 aria-describedby={error ? "email-error" : undefined}
-                className="h-10 bg-input-bg border-input-border text-foreground placeholder:text-secondary-text focus:border-primary"
               />
             </div>
             {error && (
@@ -72,11 +73,12 @@ export function LoginForm() {
             )}
           </div>
 
-          {/* Spotify OAuth Button */}
           <Button
             type="submit"
+            variant="default"
+            size="lg"
             disabled={isLoading}
-            className="w-full h-10 bg-primary hover:bg-primary-dark text-white font-semibold rounded transition-colors"
+            className="w-full"
             aria-busy={isLoading}
           >
             {isLoading ? (
@@ -97,11 +99,7 @@ export function LoginForm() {
           <div className="flex-1 border-t border-card-border" />
         </div>
 
-        {/* Guest Login */}
-        <Button
-          variant="outline"
-          className="w-full h-10 border-input-border bg-transparent text-foreground hover:bg-input-bg rounded transition-colors"
-        >
+        <Button variant="outline" size="lg" className="w-full bg-transparent">
           Try as Guest
         </Button>
       </div>
