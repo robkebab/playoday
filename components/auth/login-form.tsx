@@ -47,22 +47,24 @@ export function LoginForm() {
       <div className="space-y-6 bg-card-bg border border-card-border rounded-lg p-6 sm:p-8">
         {/* Email Input Section */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="email" className="text-foreground font-medium">
               Email Address
             </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={handleEmailChange}
-              disabled={isLoading}
-              required
-              aria-required="true"
-              aria-describedby={error ? "email-error" : undefined}
-              className="h-10 bg-input-bg border-input-border text-foreground placeholder:text-secondary-text focus:border-primary"
-            />
+            <div className="mt-3">
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={handleEmailChange}
+                disabled={isLoading}
+                required
+                aria-required="true"
+                aria-describedby={error ? "email-error" : undefined}
+                className="h-10 bg-input-bg border-input-border text-foreground placeholder:text-secondary-text focus:border-primary"
+              />
+            </div>
             {error && (
               <p id="email-error" className="text-sm text-red-500">
                 {error}
@@ -74,7 +76,7 @@ export function LoginForm() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-10 bg-primary hover:bg-primary-dark text-black font-semibold rounded transition-colors"
+            className="w-full h-10 bg-primary hover:bg-primary-dark text-white font-semibold rounded transition-colors"
             aria-busy={isLoading}
           >
             {isLoading ? (
