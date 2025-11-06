@@ -1,0 +1,270 @@
+---
+description: Human-readable API Contract
+globs:
+alwaysApply: false
+---
+
+# Play O'Day — API Contract (OpenAPI-style)
+
+> Defines the public and internal API surface for the Play O'Day MVP. Structured similarly to OpenAPI 3.0, describing endpoints, parameters, request/response models, and authentication.
+
+---
+
+## 1. Overview
+
+**Base URL:** `https://playoday.app/api`
+
+**Auth:** Bearer tokens via AuthJS sessions (Spotify OAuth). Most endpoints require authentication unless marked as `public`.
+
+**Content Type:** `application/json`
+
+**Version:** v1 (initial MVP)
+
+---
+
+## 2. Authentication
+
+### 2.1 `GET /auth/session`
+
+* **Description:** Retrieve the current authenticated session.
+* **Auth:** Required.
+* **Response 200:**
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "spotify_id": "string",
+    "display_name": "string",
+    "avatar_url": "string"
+  },
+  "expires": "2025-11-06T00:00:00.000Z"
+}
+```
+
+### 2.2 `GET /auth/logout`
+
+* **Description:** Ends the user session.
+* **Auth:** Required.
+* **Response 204:** Empty.
+
+---
+
+## 3. Prompts
+
+### 3.1 `GET /prompts/today`
+
+* **Description:** Returns the prompt for the current day.
+* **Auth:** Public.
+* **Response 200:**
+
+```json
+{
+  "id": "uuid",
+  "text": "Songs for a rainy commute",
+  "date": "2025-11-05"
+}
+```
+
+### 3.2 `GET /prompts/tomorrow`
+
+* **Description:** Returns tomorrow’s prompt (for submissions).
+* **Auth:** Public.
+* **Response 200:**
+
+```json
+{
+  "id": "uuid",
+  "text": "Songs that make you feel invincible",
+  "date": "2025-11-06"
+}
+```
+
+### 3.3 `POST /admin/prompts`
+
+* **Description:** Create or update prompts (admin only).
+* **Auth:** Admin.
+* **Request Body:**
+
+```json
+{
+  "text": "string",
+  "date": "YYYY-MM-DD"
+}
+```
+
+* **Response 201:** Prompt created.
+
+---
+
+## 4. Submissions
+
+### 4.1 `GET /submissions`
+
+* **Description:** Get current user’s submissions (or filter by date for admin).
+* **Auth:** Required.
+* **Query Params:**
+
+  * `date` (optional, YYYY-MM-DD)
+* **Response 200:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "track_id": "spotify:track:abc123",
+    "track_name": "Good Days",
+    "artist_name": "SZA",
+    "submitted_for_date": "2025-11-06"
+  }
+]
+```
+
+### 4.2 `POST /submissions`
+
+* **Description:** Submit a track for tomorrow’s playlist.
+* **Auth:** Required.
+* **Request Body:**
+
+```json
+{
+  "track_id": "spotify:track:abc123",
+  "prompt_id": "uuid"
+}
+```
+
+* **Response 201:**
+
+```json
+{
+  "id": "uuid",
+  "message": "Submission received"
+}
+```
+
+### 4.3 `DELETE /submissions/{id}`
+
+* **Description:** Delete user’s submission for a given day.
+* **Auth:** Required.
+* **Response 204:** Empty.
+
+---
+
+## 5. Playlists
+
+### 5.1 `GET /playlists/today`
+
+* **Description:** Retrieve today’s published playlist metadata.
+* **Auth:** Public.
+* **Response 200:**
+
+```json
+{
+  "id": "uuid",
+  "spotify_playlist_id": "37i9dQZF1DXcBWIGoYBM5M",
+  "prompt": {
+    "text": "Songs for a rainy commute"
+  },
+  "date": "2025-11-05",
+  "tracks": [
+    {
+      "track_id": "spotify:track:abc123",
+      "track_name": "Good Days",
+      "artist_name": "SZA"
+    }
+  ]
+}
+```
+
+### 5.2 `GET /playlists/{date}`
+
+* **Description:** Retrieve playlist metadata for a given date.
+* **Auth:** Public.
+
+### 5.3 `POST /admin/playlists/generate`
+
+* **Description:** Manually trigger playlist generation for a given date.
+* **Auth:** Admin.
+* **Request Body:**
+
+```json
+{
+  "date": "YYYY-MM-DD"
+}
+```
+
+* **Response 200:**
+
+```json
+{
+  "message": "Playlist generation triggered",
+  "date": "YYYY-MM-DD"
+}
+```
+
+---
+
+## 6. Playback & Likes (future endpoints)
+
+### 6.1 `POST /likes`
+
+* **Description:** Like a track in Play O’Day and sync with Spotify user library.
+* **Auth:** Required.
+* **Request Body:**
+
+```json
+{
+  "track_id": "spotify:track:abc123"
+}
+```
+
+* **Response 201:** `{ "message": "Track liked" }`
+
+### 6.2 `DELETE /likes/{track_id}`
+
+* **Description:** Remove like in both Play O’Day and Spotify.
+* **Auth:** Required.
+* **Response 204:** Empty.
+
+---
+
+## 7. Admin APIs
+
+### 7.1 `GET /admin/submissions`
+
+* **Description:** View all submissions for a given date.
+* **Auth:** Admin.
+* **Query Params:** `date` (YYYY-MM-DD)
+* **Response 200:** Array of submissions with user info.
+
+### 7.2 `GET /admin/playlists`
+
+* **Description:** View all playlists, including failed/pending.
+* **Auth:** Admin.
+
+### 7.3 `GET /admin/jobs/logs`
+
+* **Description:** Retrieve recent cron job logs.
+* **Auth:** Admin.
+
+---
+
+## 8. Error responses
+
+* **400 Bad Request** – Invalid input or missing parameters.
+* **401 Unauthorized** – User not authenticated.
+* **403 Forbidden** – User lacks permission (e.g., non-admin access).
+* **404 Not Found** – Resource not found.
+* **500 Internal Server Error** – Unhandled exceptions.
+
+---
+
+## 9. Notes
+
+* **Rate limiting:** 60 req/min per IP for public endpoints, 120 req/min for authenticated users.
+* **Pagination:** Future enhancement for submissions and playlists when archives are introduced.
+* **Versioning:** Future endpoints will live under `/api/v2` when expanded.
+
+---
+
+*This contract will guide backend implementation and serve as the foundation for automated OpenAPI generation and documentation.*
