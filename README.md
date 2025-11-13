@@ -56,7 +56,7 @@ Play O'Day's experience is built around a daily rhythm:
 
 Create a `.env.local` file in the root directory with the following variables:
 
-```bash
+\`\`\`bash
 # Database
 DATABASE_URL="postgresql://..."
 
@@ -70,40 +70,40 @@ PLAY_ODAY_SPOTIFY_REFRESH_TOKEN="your_central_account_refresh_token"
 
 # App URL (for OAuth callbacks)
 NEXTAUTH_URL="http://localhost:3000"
-```
+\`\`\`
 
 ### Installation
 
 1. Clone the repository:
-```bash
+\`\`\`bash
 git clone <repository-url>
 cd playoday
-```
+\`\`\`
 
 2. Install dependencies:
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
 3. Set up the database:
-```bash
+\`\`\`bash
 # Initialize Prisma
 npx prisma generate
 
 # Run migrations
 npx prisma migrate dev
-```
+\`\`\`
 
 4. Run the development server:
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Project Structure
 
-```
+\`\`\`
 playoday/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes and endpoints
@@ -113,7 +113,7 @@ playoday/
 ├── .cursor/               # Project documentation and rules
 │   └── rules/            # Architecture, API contracts, implementation plans
 └── public/                # Static assets
-```
+\`\`\`
 
 ## API Overview
 
@@ -147,25 +147,25 @@ See [`.cursor/rules/technical-overview.mdc`](.cursor/rules/technical-overview.md
 
 ### Database Migrations
 
-```bash
+\`\`\`bash
 # Create a new migration
 npx prisma migrate dev --name migration_name
 
 # Apply migrations in production
 npx prisma migrate deploy
-```
+\`\`\`
 
 ### Running Tests
 
-```bash
+\`\`\`bash
 npm run test
-```
+\`\`\`
 
 ### Linting
 
-```bash
+\`\`\`bash
 npm run lint
-```
+\`\`\`
 
 ## Deployment
 

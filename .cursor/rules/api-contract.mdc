@@ -30,7 +30,7 @@ alwaysApply: false
 * **Auth:** Required.
 * **Response 200:**
 
-```json
+\`\`\`json
 {
   "user": {
     "id": "uuid",
@@ -40,7 +40,7 @@ alwaysApply: false
   },
   "expires": "2025-11-06T00:00:00.000Z"
 }
-```
+\`\`\`
 
 ### 2.2 `GET /auth/logout`
 
@@ -58,13 +58,13 @@ alwaysApply: false
 * **Auth:** Public.
 * **Response 200:**
 
-```json
+\`\`\`json
 {
   "id": "uuid",
   "text": "Songs for a rainy commute",
   "date": "2025-11-05"
 }
-```
+\`\`\`
 
 ### 3.2 `GET /prompts/tomorrow`
 
@@ -72,13 +72,13 @@ alwaysApply: false
 * **Auth:** Public.
 * **Response 200:**
 
-```json
+\`\`\`json
 {
   "id": "uuid",
   "text": "Songs that make you feel invincible",
   "date": "2025-11-06"
 }
-```
+\`\`\`
 
 ### 3.3 `POST /admin/prompts`
 
@@ -86,12 +86,12 @@ alwaysApply: false
 * **Auth:** Admin.
 * **Request Body:**
 
-```json
+\`\`\`json
 {
   "text": "string",
   "date": "YYYY-MM-DD"
 }
-```
+\`\`\`
 
 * **Response 201:** Prompt created.
 
@@ -108,7 +108,7 @@ alwaysApply: false
   * `date` (optional, YYYY-MM-DD)
 * **Response 200:**
 
-```json
+\`\`\`json
 [
   {
     "id": "uuid",
@@ -118,7 +118,7 @@ alwaysApply: false
     "submitted_for_date": "2025-11-06"
   }
 ]
-```
+\`\`\`
 
 ### 4.2 `POST /submissions`
 
@@ -126,21 +126,21 @@ alwaysApply: false
 * **Auth:** Required.
 * **Request Body:**
 
-```json
+\`\`\`json
 {
   "track_id": "spotify:track:abc123",
   "prompt_id": "uuid"
 }
-```
+\`\`\`
 
 * **Response 201:**
 
-```json
+\`\`\`json
 {
   "id": "uuid",
   "message": "Submission received"
 }
-```
+\`\`\`
 
 ### 4.3 `DELETE /submissions/{id}`
 
@@ -158,7 +158,7 @@ alwaysApply: false
 * **Auth:** Public.
 * **Response 200:**
 
-```json
+\`\`\`json
 {
   "id": "uuid",
   "spotify_playlist_id": "37i9dQZF1DXcBWIGoYBM5M",
@@ -174,7 +174,7 @@ alwaysApply: false
     }
   ]
 }
-```
+\`\`\`
 
 ### 5.2 `GET /playlists/{date}`
 
@@ -187,20 +187,20 @@ alwaysApply: false
 * **Auth:** Admin.
 * **Request Body:**
 
-```json
+\`\`\`json
 {
   "date": "YYYY-MM-DD"
 }
-```
+\`\`\`
 
 * **Response 200:**
 
-```json
+\`\`\`json
 {
   "message": "Playlist generation triggered",
   "date": "YYYY-MM-DD"
 }
-```
+\`\`\`
 
 ---
 
@@ -212,11 +212,11 @@ alwaysApply: false
 * **Auth:** Required.
 * **Request Body:**
 
-```json
+\`\`\`json
 {
   "track_id": "spotify:track:abc123"
 }
-```
+\`\`\`
 
 * **Response 201:** `{ "message": "Track liked" }`
 
